@@ -1,3 +1,23 @@
-shopt -s globstar nullglob  # Enable double-star glob and handle no matches
+import os
+import pyarrow.parquet as pq
 
-find . -name "*.gz" -exec sh -c 'gunzip -c "{}" && mv "{}" ".gz" "${!/#*/moved_data/}"' \;
+# Set the directory containing Parquet files
+parquet_dir = '/path/to/parquet/files'
+
+# Set the output directory for CSV files
+csv_dir = '/path/to/output/csv/files'
+
+# Create the output directory if it doesn't exist
+os.makedirs(csv_dir, exist_ok=True)
+
+# Get a list of Parquet files in the directory
+parquet_files = [f for f in os.listdir(parquet_dir) if f.endswith('.parquet')]
+
+# Iterate over each Parquet file
+for parquet_file in parquet_files:
+    # Read the Parquet file
+    table = pq.read_table(os.path.join(parquet_dir, parquet_file))
+    # Write the table to CSV
+    csv_file = os.path.join(csv_dir, os.path.splitext(parquet_file)[0] + '.csv')
+    table.to_pandas().to_csv(csv_file, index=False)
+    print(f"Converted {parquet_file} to {csv_file}")
