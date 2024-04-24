@@ -1,0 +1,3 @@
+shopt -s globstar nullglob  # Enable double-star glob and handle no matches
+
+find . -name "*.gz" -exec sh -c 'gunzip -c "{}" && mv "{}" ".gz" "${!/#*/moved_data/}"' \;
