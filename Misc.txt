@@ -1,23 +1,32 @@
-import os
-import pyarrow.parquet as pq
+#!/bin/bash
 
-# Set the directory containing Parquet files
-parquet_dir = '/path/to/parquet/files'
+# PostgreSQL connection parameters
+PG_USERNAME="your_username"
+PG_DATABASE="your_database"
 
-# Set the output directory for CSV files
-csv_dir = '/path/to/output/csv/files'
+# Set the directory containing CSV files
+CSV_DIR="/path/to/csv/files"
 
-# Create the output directory if it doesn't exist
-os.makedirs(csv_dir, exist_ok=True)
+# Connect to PostgreSQL and create temporary tables
+psql -U "$PG_USERNAME" -d "$PG_DATABASE" << EOF
+CREATE TEMP TABLE temp_table (
+    column1 VARCHAR,
+    column2 VARCHAR,
+    ...
+);
+EOF
 
-# Get a list of Parquet files in the directory
-parquet_files = [f for f in os.listdir(parquet_dir) if f.endswith('.parquet')]
+# Iterate over each CSV file in the directory
+for csv_file in "$CSV_DIR"/*.csv; do
+    # Determine table name from file name (without extension)
+    table_name=$(basename "$csv_file" .csv)
+    
+    # Use the COPY command to load data from CSV file into temporary table
+    psql -U "$PG_USERNAME" -d "$PG_DATABASE" -c "COPY temp_table FROM '$csv_file' DELIMITER ',' CSV HEADER;"
+    
+    # Insert data from temporary table into main table
+    psql -U "$PG_USERNAME" -d "$PG_DATABASE" -c "INSERT INTO main_table SELECT * FROM temp_table;"
+done
 
-# Iterate over each Parquet file
-for parquet_file in parquet_files:
-    # Read the Parquet file
-    table = pq.read_table(os.path.join(parquet_dir, parquet_file))
-    # Write the table to CSV
-    csv_file = os.path.join(csv_dir, os.path.splitext(parquet_file)[0] + '.csv')
-    table.to_pandas().to_csv(csv_file, index=False)
-    print(f"Converted {parquet_file} to {csv_file}")
+# Drop the temporary table
+psql -U "$PG_USERNAME" -d "$PG_DATABASE" -c "DROP TABLE temp_table;"
